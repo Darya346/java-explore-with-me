@@ -1,6 +1,6 @@
 services:
   stats-server:
-    build: ./ewm-stats-service  git add docker-compose.yml
+    build: ./ewm-stats-service
     image: stats-server-image
     container_name: stats-server
     ports:
