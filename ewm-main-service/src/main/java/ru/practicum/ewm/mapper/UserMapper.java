@@ -20,3 +20,4 @@ public class UserMapper {
         user.setName(request.getName());
         return user;
     }
+}
