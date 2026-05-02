@@ -18,3 +18,4 @@ public class CategoryMapper {
         category.setName(request.getName());
         return category;
     }
+}
