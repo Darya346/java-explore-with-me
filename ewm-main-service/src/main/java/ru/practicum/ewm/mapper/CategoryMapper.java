@@ -7,10 +7,10 @@ import ru.practicum.ewm.model.Category;
 public class CategoryMapper {
 
     public static CategoryDto toDto(Category category) {
-        CategoryDto dto = new CategoryDto();
-        dto.setId(category.getId());
-        dto.setName(category.getName());
-        return dto;
+        CategoryDto categoryDto = new CategoryDto();
+        categoryDto.setId(category.getId());
+        categoryDto.setName(category.getName());
+        return categoryDto;
     }
 
     public static Category toCategory(NewCategoryDto request) {
@@ -18,4 +18,3 @@ public class CategoryMapper {
         category.setName(request.getName());
         return category;
     }
-}

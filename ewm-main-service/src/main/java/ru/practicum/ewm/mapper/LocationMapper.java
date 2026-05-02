@@ -7,13 +7,13 @@ import ru.practicum.ewm.model.Location;
 public class LocationMapper {
 
     public static LocationDto toDto(Location location) {
-        LocationDto dto = new LocationDto();
-        dto.setId(location.getId());
-        dto.setName(location.getName());
-        dto.setLat(location.getLat());
-        dto.setLon(location.getLon());
-        dto.setRadius(location.getRadius());
-        return dto;
+        LocationDto locationDto = new LocationDto();
+        locationDto.setId(location.getId());
+        locationDto.setName(location.getName());
+        locationDto.setLat(location.getLat());
+        locationDto.setLon(location.getLon());
+        locationDto.setRadius(location.getRadius());
+        return locationDto;
     }
 
     public static Location toLocation(NewLocationDto request) {

@@ -7,11 +7,11 @@ import ru.practicum.ewm.model.User;
 public class UserMapper {
 
     public static UserDto toDto(User user) {
-        UserDto dto = new UserDto();
-        dto.setId(user.getId());
-        dto.setEmail(user.getEmail());
-        dto.setName(user.getName());
-        return dto;
+        UserDto userDto = new UserDto();
+        userDto.setId(user.getId());
+        userDto.setEmail(user.getEmail());
+        userDto.setName(user.getName());
+        return userDto;
     }
 
     public static User toUser(NewUserRequest request) {
@@ -20,4 +20,3 @@ public class UserMapper {
         user.setName(request.getName());
         return user;
     }
-}

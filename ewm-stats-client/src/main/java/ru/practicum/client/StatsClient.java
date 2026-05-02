@@ -28,12 +28,12 @@ public class StatsClient {
     }
 
     public void hit(String app, String uri, String ip, LocalDateTime timestamp) {
-        EndpointHitDto dto = new EndpointHitDto();
-        dto.setApp(app);
-        dto.setUri(uri);
-        dto.setIp(ip);
-        dto.setTimestamp(timestamp);
-        rest.postForEntity("/hit", dto, Object.class);
+        EndpointHitDto hitDto = new EndpointHitDto();
+        hitDto.setApp(app);
+        hitDto.setUri(uri);
+        hitDto.setIp(ip);
+        hitDto.setTimestamp(timestamp);
+        rest.postForEntity("/hit", hitDto, Object.class);
     }
 
     public ResponseEntity<Object> getStats(LocalDateTime start, LocalDateTime end,
