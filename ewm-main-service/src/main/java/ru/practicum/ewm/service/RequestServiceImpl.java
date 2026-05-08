@@ -79,7 +79,7 @@ public class RequestServiceImpl implements RequestService {
     @Transactional
     public RequestDto cancelRequest(Long userId, Long requestId) {
         ParticipationRequest request = requestRepository.findById(requestId)
-                .orElseThrow(() -> new NotFoundException("Request not found"));
+                .orElseThrow(() -> new NotFoundException("Request with id=" + requestId + " was not found"));
 
         if (!request.getRequester().getId().equals(userId)) {
             throw new ConflictException("You can only cancel your own requests");
@@ -91,14 +91,6 @@ public class RequestServiceImpl implements RequestService {
 
         request.setStatus(RequestStatus.CANCELED);
         return RequestMapper.toDto(requestRepository.save(request));
-    }
-    @Override
-    public List<RequestDto> getEventRequests(Long userId, Long eventId) {
-        Event event = eventRepository.findById(eventId).orElseThrow(() -> new NotFoundException("Event not found"));
-        if (!event.getInitiator().getId().equals(userId)) throw new ConflictException("Not your event");
-
-        return requestRepository.findAllByEventId(eventId).stream()
-                .map(RequestMapper::toDto).collect(Collectors.toList());
     }
 
     @Override

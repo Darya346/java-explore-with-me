@@ -184,9 +184,8 @@ public class EventServiceImpl implements EventService {
 
         sendStats(request);
 
-        int pageSize = (size > 0) ? size : 10;
-        int page = from / pageSize;
-        PageRequest pageable = PageRequest.of(page, pageSize);
+        int page = from / size;
+        PageRequest pageable = PageRequest.of(page, size);
 
         List<Event> events = eventRepository.findPublishedEvents(text, categories, paid, rangeStart, rangeEnd,
                 onlyAvailable, pageable);
@@ -194,8 +193,8 @@ public class EventServiceImpl implements EventService {
         if ("VIEWS".equals(sort)) {
             events = events.stream()
                     .sorted((e1, e2) -> {
-                        long v1 = (e1.getViews() == null) ? 0L : e1.getViews();
-                        long v2 = (e2.getViews() == null) ? 0L : e2.getViews();
+                        long v1 = (e1.getViews() == null) ? 0 : e1.getViews();
+                        long v2 = (e2.getViews() == null) ? 0 : e2.getViews();
                         return Long.compare(v2, v1);
                     })
                     .collect(Collectors.toList());
@@ -205,7 +204,6 @@ public class EventServiceImpl implements EventService {
                 .map(EventMapper::toShortDto)
                 .collect(Collectors.toList());
     }
-
     @Override
     public EventFullDto getEventByIdPublic(Long id, HttpServletRequest request) {
         Event event = eventRepository.findByIdAndState(id, EventState.PUBLISHED)
