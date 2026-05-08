@@ -80,10 +80,11 @@ public class RequestServiceImpl implements RequestService {
                 .orElseThrow(() -> new NotFoundException("Request with id=" + requestId + " was not found"));
 
         if (!request.getRequester().getId().equals(userId)) {
-            throw new ConflictException("Not your request");
+            throw new ConflictException("You can only cancel your own requests");
         }
-        if (request.getStatus() == RequestStatus.CONFIRMED) {
-            throw new ConflictException("Cannot cancel an already confirmed request");
+
+        if (request.getStatus() != RequestStatus.PENDING) {
+            throw new ConflictException("Cannot cancel request with status: " + request.getStatus());
         }
 
         request.setStatus(RequestStatus.CANCELED);

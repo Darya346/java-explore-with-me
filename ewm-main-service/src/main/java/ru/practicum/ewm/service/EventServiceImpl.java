@@ -178,32 +178,33 @@ public class EventServiceImpl implements EventService {
             throw new BadRequestException("Start date must be before end date");
         }
 
-        if (rangeStart == null && rangeEnd == null) {
-            rangeStart = LocalDateTime.now();
+        LocalDateTime start = (rangeStart != null) ? rangeStart : LocalDateTime.now();
+        LocalDateTime end = (rangeEnd != null) ? rangeEnd : LocalDateTime.now().plusYears(100);
+
+        try {
+            statsClient.hit(APP_NAME, request.getRequestURI(), request.getRemoteAddr(), LocalDateTime.now());
+        } catch (Exception e) {
+            log.error("Stats error: {}", e.getMessage());
         }
 
-        sendStats(request);
 
-        int page = from / size;
-        PageRequest pageable = PageRequest.of(page, size);
+        int pageSize = (size > 0) ? size : 10;
+        PageRequest pageable = PageRequest.of(from / pageSize, pageSize);
 
-        List<Event> events = eventRepository.findPublishedEvents(text, categories, paid, rangeStart, rangeEnd,
+        List<Event> events = eventRepository.findPublishedEvents(text, categories, paid, start, end,
                 onlyAvailable, pageable);
 
-        if ("VIEWS".equals(sort)) {
+        if ("VIEWS".equalsIgnoreCase(sort)) {
             events = events.stream()
-                    .sorted((e1, e2) -> {
-                        long v1 = (e1.getViews() == null) ? 0 : e1.getViews();
-                        long v2 = (e2.getViews() == null) ? 0 : e2.getViews();
-                        return Long.compare(v2, v1);
-                    })
+                    .sorted((e1, e2) -> Long.compare(
+                            e2.getViews() != null ? e2.getViews() : 0,
+                            e1.getViews() != null ? e1.getViews() : 0))
                     .collect(Collectors.toList());
         }
 
-        return events.stream()
-                .map(EventMapper::toShortDto)
-                .collect(Collectors.toList());
+        return events.stream().map(EventMapper::toShortDto).collect(Collectors.toList());
     }
+
     @Override
     public EventFullDto getEventByIdPublic(Long id, HttpServletRequest request) {
         Event event = eventRepository.findByIdAndState(id, EventState.PUBLISHED)
