@@ -51,7 +51,7 @@ public class CompilationServiceImpl implements CompilationService {
     @Transactional
     public void deleteCompilation(Long compId) {
         if (!compilationRepository.existsById(compId)) {
-            throw new RuntimeException("Compilation not found"); // Позже заменим на Custom Exception
+            throw new RuntimeException("Compilation not found");
         }
         compilationRepository.deleteById(compId);
     }

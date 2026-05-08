@@ -14,7 +14,7 @@ import ru.practicum.ewm.dto.request.UpdateEventAdmin;
 import ru.practicum.ewm.dto.request.UpdateEventUser;
 import ru.practicum.ewm.dto.response.EventFullDto;
 import ru.practicum.ewm.dto.response.EventShortDto;
-import ru.practicum.ewm.dto.response.LocationDto; // Проверь этот импорт
+import ru.practicum.ewm.dto.response.LocationDto;
 import ru.practicum.ewm.exception.BadRequestException;
 import ru.practicum.ewm.exception.ConflictException;
 import ru.practicum.ewm.exception.NotFoundException;
