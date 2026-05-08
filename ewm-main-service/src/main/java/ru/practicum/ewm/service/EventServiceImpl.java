@@ -190,9 +190,8 @@ public class EventServiceImpl implements EventService {
         PageRequest pageable = PageRequest.of(pageNum, pageSize);
 
         List<Event> events = eventRepository.findPublishedEvents(
-                EventState.PUBLISHED, text, categoryIds, paid, start, end,
+                EventState.PUBLISHED.name(), text, categoryIds, paid, start, end,
                 (onlyAvailable != null && onlyAvailable), pageable);
-
         if (sort != null) {
             if (sort.equalsIgnoreCase("VIEWS")) {
                 events = events.stream()
