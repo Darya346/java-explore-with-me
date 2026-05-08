@@ -61,8 +61,9 @@ public class ErrorHandler {
         return ApiError.builder()
                 .status(status.name())
                 .reason(reason)
-                .message(message != null ? message : "No message")
+                .message(message != null ? message : "No message available")
                 .timestamp(LocalDateTime.now().format(FORMATTER))
+                .errors(java.util.List.of())
                 .build();
     }
 }

@@ -174,10 +174,8 @@ public class EventServiceImpl implements EventService {
                                                Boolean onlyAvailable, String sort, int from, int size,
                                                HttpServletRequest request) {
 
-        if (rangeStart != null && rangeEnd != null) {
-            if (rangeStart.isAfter(rangeEnd)) {
-                throw new BadRequestException("Start date cannot be after end date");
-            }
+        if (rangeStart != null && rangeEnd != null && rangeStart.isAfter(rangeEnd)) {
+            throw new BadRequestException("Start date cannot be after end date");
         }
 
         if (rangeStart == null && rangeEnd == null) {
@@ -185,15 +183,19 @@ public class EventServiceImpl implements EventService {
         }
 
         sendStats(request);
-        int page = from / size;
-        PageRequest pageable = PageRequest.of(page, size);
+
+        PageRequest pageable = PageRequest.of(from / size, size);
 
         List<Event> events = eventRepository.findPublishedEvents(text, categories, paid, rangeStart, rangeEnd,
                 onlyAvailable, pageable);
 
         if ("VIEWS".equals(sort)) {
             events = events.stream()
-                    .sorted((e1, e2) -> e2.getViews().compareTo(e1.getViews()))
+                    .sorted((e1, e2) -> {
+                        long v1 = (e1.getViews() == null) ? 0L : e1.getViews();
+                        long v2 = (e2.getViews() == null) ? 0L : e2.getViews();
+                        return Long.compare(v2, v1); // Сортировка от большего к меньшему
+                    })
                     .collect(Collectors.toList());
         }
 
@@ -201,7 +203,6 @@ public class EventServiceImpl implements EventService {
                 .map(EventMapper::toShortDto)
                 .collect(Collectors.toList());
     }
-
     @Override
     public EventFullDto getEventByIdPublic(Long id, HttpServletRequest request) {
         Event event = eventRepository.findByIdAndState(id, EventState.PUBLISHED)
