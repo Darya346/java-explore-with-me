@@ -101,6 +101,7 @@ public class EventServiceImpl implements EventService {
         }
 
         if (request.getEventDate() != null) {
+
             if (request.getEventDate().isBefore(LocalDateTime.now().plusHours(2))) {
                 throw new BadRequestException("Event date must be at least 2 hours in the future.");
             }
@@ -138,7 +139,6 @@ public class EventServiceImpl implements EventService {
                 .orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
 
         if (request.getEventDate() != null) {
-            // ТЗ для админа: не ранее чем за час до публикации
             if (request.getEventDate().isBefore(LocalDateTime.now().plusHours(1))) {
                 throw new BadRequestException("Event date must be at least 1 hour before publication.");
             }
@@ -229,10 +229,16 @@ public class EventServiceImpl implements EventService {
         }
 
         if (paid != null) event.setPaid(paid);
-        if (partLimit != null) event.setParticipantLimit(partLimit);
+        if (partLimit != null) {
+            if (partLimit < 0) {
+                throw new BadRequestException("Participant limit cannot be negative");
+            }
+            event.setParticipantLimit(partLimit);
+        }
         if (reqMod != null) event.setRequestModeration(reqMod);
         if (title != null && !title.isBlank()) event.setTitle(title);
     }
+
 
     private void sendStats(HttpServletRequest request) {
         try {

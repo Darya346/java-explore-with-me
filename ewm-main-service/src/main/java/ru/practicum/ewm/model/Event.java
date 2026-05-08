@@ -22,10 +22,10 @@ public class Event {
     @Column(nullable = false)
     String title;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 2000)
     String annotation;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(nullable = false, length = 7000)
     String description;
 
     @ManyToOne
