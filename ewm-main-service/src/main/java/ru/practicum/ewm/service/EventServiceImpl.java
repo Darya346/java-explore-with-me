@@ -47,7 +47,7 @@ public class EventServiceImpl implements EventService {
     @Override
     @Transactional
     public EventFullDto createEvent(Long userId, NewEventDto dto) {
-        // 1. Валидация даты
+
         if (dto.getEventDate().isBefore(LocalDateTime.now().plusHours(2))) {
             throw new BadRequestException("Event date must be at least 2 hours in the future.");
         }
@@ -57,7 +57,7 @@ public class EventServiceImpl implements EventService {
         Category category = categoryRepository.findById(dto.getCategory())
                 .orElseThrow(() -> new NotFoundException("Category with id=" + dto.getCategory() + " was not found"));
 
-        // 2. Локация: сохраняем новые координаты в таблицу locations
+
         Location location = locationRepository.save(LocationMapper.toLocation(dto.getLocation()));
 
         Event event = EventMapper.toEvent(dto);
@@ -69,7 +69,7 @@ public class EventServiceImpl implements EventService {
         event.setConfirmedRequests(0L);
         event.setViews(0L);
 
-        // 3. Дефолтные значения (защита от null и 500 ошибок)
+
         if (event.getPaid() == null) event.setPaid(false);
         if (event.getParticipantLimit() == null) event.setParticipantLimit(0);
         if (event.getRequestModeration() == null) event.setRequestModeration(true);
@@ -116,7 +116,7 @@ public class EventServiceImpl implements EventService {
             }
         }
 
-        // Обновляем поля, передавая объект локации целиком
+
         updateEventCommonFields(event, request.getAnnotation(), request.getCategory(), request.getDescription(),
                 request.getLocation(), request.getPaid(), request.getParticipantLimit(), request.getRequestModeration(), request.getTitle());
 
@@ -185,8 +185,11 @@ public class EventServiceImpl implements EventService {
         }
 
         sendStats(request);
+        int page = from / size;
+        PageRequest pageable = PageRequest.of(page, size);
+
         List<Event> events = eventRepository.findPublishedEvents(text, categories, paid, rangeStart, rangeEnd,
-                onlyAvailable, PageRequest.of(from / size, size));
+                onlyAvailable, pageable);
 
         if ("VIEWS".equals(sort)) {
             events = events.stream()

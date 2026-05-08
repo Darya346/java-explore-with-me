@@ -63,7 +63,7 @@ public class RequestServiceImpl implements RequestService {
         request.setEvent(event);
         request.setRequester(requester);
 
-        // Если модерация не нужна или лимит 0 — подтверждаем сразу
+
         if (!event.getRequestModeration() || event.getParticipantLimit() == 0) {
             request.setStatus(RequestStatus.CONFIRMED);
             event.setConfirmedRequests(event.getConfirmedRequests() + 1);
@@ -80,9 +80,15 @@ public class RequestServiceImpl implements RequestService {
     public RequestDto cancelRequest(Long userId, Long requestId) {
         ParticipationRequest request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new NotFoundException("Request not found"));
+
         if (!request.getRequester().getId().equals(userId)) {
-            throw new ConflictException("Not your request");
+            throw new ConflictException("You can only cancel your own requests");
         }
+
+        if (request.getStatus() == RequestStatus.CONFIRMED) {
+            throw new ConflictException("Cannot cancel a confirmed request");
+        }
+
         request.setStatus(RequestStatus.CANCELED);
         return RequestMapper.toDto(requestRepository.save(request));
     }

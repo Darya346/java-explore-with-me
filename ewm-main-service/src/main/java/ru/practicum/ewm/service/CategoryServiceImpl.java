@@ -38,7 +38,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Transactional
     public CategoryDto updateCategory(Long catId, CategoryDto categoryDto) {
         Category category = categoryRepository.findById(catId)
-                .orElseThrow(() -> new RuntimeException("Category not found"));
+                .orElseThrow(() -> new NotFoundException("Category not found"));
         category.setName(categoryDto.getName());
         Category updatedCategory = categoryRepository.save(category);
         return CategoryMapper.toDto(updatedCategory);
@@ -54,9 +54,9 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public CategoryDto getCategory(Long catId) {
-        Category category = categoryRepository.findById(catId)
-                .orElseThrow(() -> new RuntimeException("Category not found"));
-        return CategoryMapper.toDto(category);
+        return categoryRepository.findById(catId)
+                .map(CategoryMapper::toDto)
+                .orElseThrow(() -> new NotFoundException("Category with id=" + catId + " was not found"));
     }
 
 
