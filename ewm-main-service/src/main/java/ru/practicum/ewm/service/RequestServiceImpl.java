@@ -92,7 +92,6 @@ public class RequestServiceImpl implements RequestService {
         request.setStatus(RequestStatus.CANCELED);
         return RequestMapper.toDto(requestRepository.save(request));
     }
-
     @Override
     public List<RequestDto> getEventRequests(Long userId, Long eventId) {
         Event event = eventRepository.findById(eventId).orElseThrow(() -> new NotFoundException("Event not found"));

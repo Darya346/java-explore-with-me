@@ -174,27 +174,37 @@ public class EventServiceImpl implements EventService {
                                                Boolean onlyAvailable, String sort, int from, int size,
                                                HttpServletRequest request) {
 
+
         if (rangeStart != null && rangeEnd != null && rangeStart.isAfter(rangeEnd)) {
-            throw new BadRequestException("Start date cannot be after end date");
+            throw new BadRequestException("Start date must be before end date");
         }
+
 
         if (rangeStart == null && rangeEnd == null) {
             rangeStart = LocalDateTime.now();
         }
 
-        sendStats(request);
 
-        PageRequest pageable = PageRequest.of(from / size, size);
+        try {
+            statsClient.hit(APP_NAME, request.getRequestURI(), request.getRemoteAddr(), LocalDateTime.now());
+        } catch (Exception e) {
+            log.error("Stats server error: {}", e.getMessage());
+        }
+
+
+        int page = from / size;
+        PageRequest pageable = PageRequest.of(page, size);
 
         List<Event> events = eventRepository.findPublishedEvents(text, categories, paid, rangeStart, rangeEnd,
                 onlyAvailable, pageable);
+
 
         if ("VIEWS".equals(sort)) {
             events = events.stream()
                     .sorted((e1, e2) -> {
                         long v1 = (e1.getViews() == null) ? 0L : e1.getViews();
                         long v2 = (e2.getViews() == null) ? 0L : e2.getViews();
-                        return Long.compare(v2, v1); // Сортировка от большего к меньшему
+                        return Long.compare(v2, v1);
                     })
                     .collect(Collectors.toList());
         }
