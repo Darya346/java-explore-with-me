@@ -178,21 +178,21 @@ public class EventServiceImpl implements EventService {
             throw new BadRequestException("Start date must be before end date");
         }
 
-        // ФИКС 1: Превращаем пустой список [] в null, чтобы SQL не падал на IN()
         List<Long> categoryIds = (categories != null && categories.isEmpty()) ? null : categories;
+
+        LocalDateTime start = (rangeStart != null) ? rangeStart : LocalDateTime.now().minusSeconds(1);
+        LocalDateTime end = (rangeEnd != null) ? rangeEnd : LocalDateTime.now().plusYears(100);
 
         sendStats(request);
 
-        // Безопасная пагинация (защита от деления на 0)
         int pageSize = (size > 0) ? size : 10;
-        PageRequest pageable = PageRequest.of(from / pageSize, pageSize);
+        int pageNum = from / pageSize;
+        PageRequest pageable = PageRequest.of(pageNum, pageSize);
 
-        // ФИКС 2: Передаем EventState.PUBLISHED как Enum параметр
         List<Event> events = eventRepository.findPublishedEvents(
-                EventState.PUBLISHED,
-                text, categoryIds, paid, rangeStart, rangeEnd, onlyAvailable, pageable);
+                EventState.PUBLISHED, text, categoryIds, paid, start, end,
+                (onlyAvailable != null && onlyAvailable), pageable);
 
-        // Сортировка
         if (sort != null) {
             if (sort.equalsIgnoreCase("VIEWS")) {
                 events = events.stream()
