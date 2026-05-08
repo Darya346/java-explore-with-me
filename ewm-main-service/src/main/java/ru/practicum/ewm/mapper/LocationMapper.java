@@ -16,12 +16,12 @@ public class LocationMapper {
         return locationDto;
     }
 
-    public static Location toLocation(NewLocationDto request) {
+
+    public static Location toLocation(LocationDto dto) {
+        if (dto == null) return null;
         Location location = new Location();
-        location.setName(request.getName());
-        location.setLat(request.getLat());
-        location.setLon(request.getLon());
-        location.setRadius(request.getRadius());
+        location.setLat(dto.getLat());
+        location.setLon(dto.getLon());
         return location;
     }
 }

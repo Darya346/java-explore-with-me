@@ -6,6 +6,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.FieldDefaults;
+import ru.practicum.ewm.dto.response.LocationDto;
 
 import java.time.LocalDateTime;
 
@@ -30,7 +31,7 @@ public class NewEventDto {
     Long category;
 
     @NotNull
-    Long location;
+    LocationDto location;
 
     @NotNull
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")

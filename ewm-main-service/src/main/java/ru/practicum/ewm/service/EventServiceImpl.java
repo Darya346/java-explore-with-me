@@ -9,16 +9,17 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.client.StatsClient;
-import ru.practicum.dto.EndpointHitDto;
 import ru.practicum.ewm.dto.request.NewEventDto;
 import ru.practicum.ewm.dto.request.UpdateEventAdmin;
 import ru.practicum.ewm.dto.request.UpdateEventUser;
 import ru.practicum.ewm.dto.response.EventFullDto;
 import ru.practicum.ewm.dto.response.EventShortDto;
+import ru.practicum.ewm.dto.response.LocationDto; // Проверь этот импорт
 import ru.practicum.ewm.exception.BadRequestException;
 import ru.practicum.ewm.exception.ConflictException;
 import ru.practicum.ewm.exception.NotFoundException;
 import ru.practicum.ewm.mapper.EventMapper;
+import ru.practicum.ewm.mapper.LocationMapper;
 import ru.practicum.ewm.model.*;
 import ru.practicum.ewm.repository.*;
 
@@ -45,53 +46,37 @@ public class EventServiceImpl implements EventService {
 
     @Override
     @Transactional
-    public EventFullDto createEvent(Long userId, NewEventDto newEventDto) {
-
-        if (newEventDto.getEventDate().isBefore(LocalDateTime.now().plusHours(2))) {
-            throw new BadRequestException("Field: eventDate. Error: must contain a date that has not yet arrived. " +
-                    "Value: " + newEventDto.getEventDate());
+    public EventFullDto createEvent(Long userId, NewEventDto dto) {
+        // 1. Валидация даты
+        if (dto.getEventDate().isBefore(LocalDateTime.now().plusHours(2))) {
+            throw new BadRequestException("Event date must be at least 2 hours in the future.");
         }
-
 
         User initiator = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User with id=" + userId + " was not found"));
+        Category category = categoryRepository.findById(dto.getCategory())
+                .orElseThrow(() -> new NotFoundException("Category with id=" + dto.getCategory() + " was not found"));
 
+        // 2. Локация: сохраняем новые координаты в таблицу locations
+        Location location = locationRepository.save(LocationMapper.toLocation(dto.getLocation()));
 
-        Category category = categoryRepository.findById(newEventDto.getCategory())
-                .orElseThrow(() -> new NotFoundException("Category with id=" + newEventDto.getCategory() + " was not found"));
-
-
-        Location location = locationRepository.findById(newEventDto.getLocation())
-                .orElseThrow(() -> new NotFoundException("Location with id=" + newEventDto.getLocation() + " was not found"));
-
-
-        Event event = EventMapper.toEvent(newEventDto);
-
-
+        Event event = EventMapper.toEvent(dto);
         event.setInitiator(initiator);
         event.setCategory(category);
         event.setLocation(location);
         event.setCreatedOn(LocalDateTime.now());
         event.setState(EventState.PENDING);
-
-
         event.setConfirmedRequests(0L);
         event.setViews(0L);
 
+        // 3. Дефолтные значения (защита от null и 500 ошибок)
+        if (event.getPaid() == null) event.setPaid(false);
+        if (event.getParticipantLimit() == null) event.setParticipantLimit(0);
+        if (event.getRequestModeration() == null) event.setRequestModeration(true);
 
-        if (event.getPaid() == null) {
-            event.setPaid(false);
-        }
-        if (event.getParticipantLimit() == null) {
-            event.setParticipantLimit(0);
-        }
-        if (event.getRequestModeration() == null) {
-            event.setRequestModeration(true);
-        }
-
-        Event savedEvent = eventRepository.save(event);
-        return EventMapper.toFullDto(savedEvent);
+        return EventMapper.toFullDto(eventRepository.save(event));
     }
+
     @Override
     public List<EventShortDto> getEventsByUserId(Long userId, int from, int size) {
         return eventRepository.findAllByInitiatorId(userId, PageRequest.of(from / size, size))
@@ -101,7 +86,7 @@ public class EventServiceImpl implements EventService {
     @Override
     public EventFullDto getEventByIdAndUserId(Long userId, Long eventId) {
         Event event = eventRepository.findByIdAndInitiatorId(eventId, userId)
-                .orElseThrow(() -> new NotFoundException("Event not found"));
+                .orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " not found"));
         return EventMapper.toFullDto(event);
     }
 
@@ -130,6 +115,7 @@ public class EventServiceImpl implements EventService {
             }
         }
 
+        // Обновляем поля, передавая объект локации целиком
         updateEventCommonFields(event, request.getAnnotation(), request.getCategory(), request.getDescription(),
                 request.getLocation(), request.getPaid(), request.getParticipantLimit(), request.getRequestModeration(), request.getTitle());
 
@@ -148,28 +134,25 @@ public class EventServiceImpl implements EventService {
     @Override
     @Transactional
     public EventFullDto updateEventByAdmin(Long eventId, UpdateEventAdmin request) {
-
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
 
         if (request.getEventDate() != null) {
+            // ТЗ для админа: не ранее чем за час до публикации
             if (request.getEventDate().isBefore(LocalDateTime.now().plusHours(1))) {
-                throw new BadRequestException("Event date must be at least 1 hour before publication. " +
-                        "Value: " + request.getEventDate());
+                throw new BadRequestException("Event date must be at least 1 hour before publication.");
             }
             event.setEventDate(request.getEventDate());
         }
 
         if (request.getStateAction() != null) {
             if (request.getStateAction().equals("PUBLISH_EVENT")) {
-
                 if (event.getState() != EventState.PENDING) {
-                    throw new ConflictException("Cannot publish the event because it's not in the PENDING state: " + event.getState());
+                    throw new ConflictException("Cannot publish the event because it's not in the PENDING state.");
                 }
                 event.setState(EventState.PUBLISHED);
                 event.setPublishedOn(LocalDateTime.now());
             } else if (request.getStateAction().equals("REJECT_EVENT")) {
-
                 if (event.getState() == EventState.PUBLISHED) {
                     throw new ConflictException("Cannot reject the event because it's already published.");
                 }
@@ -228,36 +211,34 @@ public class EventServiceImpl implements EventService {
         return EventMapper.toFullDto(event);
     }
 
-    // --- Вспомогательные методы ---
+
 
     private void updateEventCommonFields(Event event, String annotation, Long catId, String description,
-                                         Long locId, Boolean paid, Integer partLimit, Boolean reqMod, String title) {
-        if (annotation != null) event.setAnnotation(annotation);
+                                         LocationDto locationDto, Boolean paid, Integer partLimit, Boolean reqMod, String title) {
+        if (annotation != null && !annotation.isBlank()) event.setAnnotation(annotation);
         if (catId != null) {
             event.setCategory(categoryRepository.findById(catId)
                     .orElseThrow(() -> new NotFoundException("Category not found")));
         }
-        if (description != null) event.setDescription(description);
-        if (locId != null) {
-            event.setLocation(locationRepository.findById(locId)
-                    .orElseThrow(() -> new NotFoundException("Location not found")));
+        if (description != null && !description.isBlank()) event.setDescription(description);
+
+
+        if (locationDto != null) {
+            Location location = locationRepository.save(LocationMapper.toLocation(locationDto));
+            event.setLocation(location);
         }
+
         if (paid != null) event.setPaid(paid);
         if (partLimit != null) event.setParticipantLimit(partLimit);
         if (reqMod != null) event.setRequestModeration(reqMod);
-        if (title != null) event.setTitle(title);
+        if (title != null && !title.isBlank()) event.setTitle(title);
     }
 
     private void sendStats(HttpServletRequest request) {
         try {
-            statsClient.hit(
-                    APP_NAME,
-                    request.getRequestURI(),
-                    request.getRemoteAddr(),
-                    LocalDateTime.now()
-            );
+            statsClient.hit(APP_NAME, request.getRequestURI(), request.getRemoteAddr(), LocalDateTime.now());
         } catch (Exception e) {
-            log.error("Ошибка при отправке статистики в stats-server: {}", e.getMessage());
+            log.error("Ошибка статистики: {}", e.getMessage());
         }
     }
 }

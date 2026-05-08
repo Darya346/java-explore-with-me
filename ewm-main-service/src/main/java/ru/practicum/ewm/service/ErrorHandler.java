@@ -17,6 +17,7 @@ import ru.practicum.ewm.exception.NotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestControllerAdvice
@@ -27,34 +28,43 @@ public class ErrorHandler {
     @ExceptionHandler(NotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ApiError handleNotFound(final NotFoundException e) {
-        log.error("404 NotFound: {}", e.getMessage());
+        log.error("404: {}", e.getMessage());
         return createApiError(HttpStatus.NOT_FOUND, "The required object was not found.", e.getMessage());
     }
 
     @ExceptionHandler({ConflictException.class, DataIntegrityViolationException.class})
     @ResponseStatus(HttpStatus.CONFLICT)
     public ApiError handleConflict(final Exception e) {
-        log.error("409 Conflict: {}", e.getMessage());
+        log.error("409: {}", e.getMessage());
         return createApiError(HttpStatus.CONFLICT, "For the requested operation the conditions are not met.", e.getMessage());
     }
 
     @ExceptionHandler({
             BadRequestException.class,
-            MethodArgumentNotValidException.class,      // Ошибки в @RequestBody
-            ConstraintViolationException.class,         // Ошибки jakarta валидации
-            MissingServletRequestParameterException.class, // Ошибка №001 (отсутствие eventId)
-            HandlerMethodValidationException.class       // Новое в Spring 6 / Boot 3 для параметров контроллера
+            MethodArgumentNotValidException.class,
+            ConstraintViolationException.class,
+            MissingServletRequestParameterException.class,
+            HandlerMethodValidationException.class
     })
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiError handleBadRequest(final Exception e) {
-        log.error("400 BadRequest: {}", e.getMessage());
-        return createApiError(HttpStatus.BAD_REQUEST, "Incorrectly made request.", e.getMessage());
+        log.error("400: {}", e.getMessage());
+        String message = e.getMessage();
+
+        // Для сложных ошибок валидации вытаскиваем только суть, чтобы не падал JSON
+        if (e instanceof MethodArgumentNotValidException) {
+            message = ((MethodArgumentNotValidException) e).getBindingResult().getFieldErrors().stream()
+                    .map(error -> "Field: " + error.getField() + ". Error: " + error.getDefaultMessage())
+                    .collect(Collectors.joining(", "));
+        }
+
+        return createApiError(HttpStatus.BAD_REQUEST, "Incorrectly made request.", message);
     }
 
     @ExceptionHandler(Throwable.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiError handleThrowable(final Throwable e) {
-        log.error("500 InternalServerError: ", e);
+        log.error("500: ", e);
         return createApiError(HttpStatus.INTERNAL_SERVER_ERROR, "Error occurred", e.getMessage());
     }
 
@@ -62,7 +72,19 @@ public class ErrorHandler {
         return ApiError.builder()
                 .status(status.name())
                 .reason(reason)
-                .message(message)
+                .message(message != null ? message : "No message available")
+                .timestamp(LocalDateTime.now().format(FORMATTER))
+                .build();
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiError handleDataIntegrity(final DataIntegrityViolationException e) {
+        log.error("409 Conflict (Database): {}", e.getMessage());
+        return ApiError.builder()
+                .status(HttpStatus.CONFLICT.name())
+                .reason("Integrity constraint has been violated.") // Текст из спецификации
+                .message(e.getMessage())
                 .timestamp(LocalDateTime.now().format(FORMATTER))
                 .build();
     }
