@@ -174,36 +174,34 @@ public class EventServiceImpl implements EventService {
                                                Boolean onlyAvailable, String sort, int from, int size,
                                                HttpServletRequest request) {
 
-
-        if (rangeStart != null && rangeEnd != null && rangeStart.isAfter(rangeEnd)) {
-            throw new BadRequestException("Start date must be before end date");
+        if (rangeStart != null && rangeEnd != null) {
+            if (rangeStart.isAfter(rangeEnd)) {
+                throw new BadRequestException("Start date must be before end date");
+            }
         }
-
 
         if (rangeStart == null && rangeEnd == null) {
             rangeStart = LocalDateTime.now();
         }
 
-
         try {
             statsClient.hit(APP_NAME, request.getRequestURI(), request.getRemoteAddr(), LocalDateTime.now());
         } catch (Exception e) {
-            log.error("Stats server error: {}", e.getMessage());
+            log.error("Error sending stats: {}", e.getMessage());
         }
 
-
-        int page = from / size;
-        PageRequest pageable = PageRequest.of(page, size);
+        int page = (size > 0) ? from / size : 0;
+        int pageSize = (size > 0) ? size : 10;
+        PageRequest pageable = PageRequest.of(page, pageSize);
 
         List<Event> events = eventRepository.findPublishedEvents(text, categories, paid, rangeStart, rangeEnd,
                 onlyAvailable, pageable);
 
-
         if ("VIEWS".equals(sort)) {
             events = events.stream()
                     .sorted((e1, e2) -> {
-                        long v1 = (e1.getViews() == null) ? 0L : e1.getViews();
-                        long v2 = (e2.getViews() == null) ? 0L : e2.getViews();
+                        long v1 = (e1.getViews() == null) ? 0 : e1.getViews();
+                        long v2 = (e2.getViews() == null) ? 0 : e2.getViews();
                         return Long.compare(v2, v1);
                     })
                     .collect(Collectors.toList());
@@ -213,6 +211,7 @@ public class EventServiceImpl implements EventService {
                 .map(EventMapper::toShortDto)
                 .collect(Collectors.toList());
     }
+
     @Override
     public EventFullDto getEventByIdPublic(Long id, HttpServletRequest request) {
         Event event = eventRepository.findByIdAndState(id, EventState.PUBLISHED)
