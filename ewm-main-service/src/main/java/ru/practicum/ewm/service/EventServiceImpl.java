@@ -178,41 +178,37 @@ public class EventServiceImpl implements EventService {
             throw new BadRequestException("Start date must be before end date");
         }
 
-        LocalDateTime start = (rangeStart != null) ? rangeStart : LocalDateTime.now();
-        LocalDateTime end = (rangeEnd != null) ? rangeEnd : LocalDateTime.now().plusYears(100);
+        // ФИКС 1: Превращаем пустой список [] в null, чтобы SQL не падал на IN()
+        List<Long> categoryIds = (categories != null && categories.isEmpty()) ? null : categories;
 
-        try {
-            statsClient.hit(APP_NAME, request.getRequestURI(), request.getRemoteAddr(), LocalDateTime.now());
-        } catch (Exception e) {
-            log.error("Stats error: {}", e.getMessage());
-        }
+        sendStats(request);
 
-
+        // Безопасная пагинация (защита от деления на 0)
         int pageSize = (size > 0) ? size : 10;
         PageRequest pageable = PageRequest.of(from / pageSize, pageSize);
 
-        List<Event> events = eventRepository.findPublishedEvents(text, categories, paid, start, end,
-                onlyAvailable, pageable);
+        // ФИКС 2: Передаем EventState.PUBLISHED как Enum параметр
+        List<Event> events = eventRepository.findPublishedEvents(
+                EventState.PUBLISHED,
+                text, categoryIds, paid, rangeStart, rangeEnd, onlyAvailable, pageable);
 
-        if ("VIEWS".equalsIgnoreCase(sort)) {
-            events = events.stream()
-                    .sorted((e1, e2) -> Long.compare(
-                            e2.getViews() != null ? e2.getViews() : 0,
-                            e1.getViews() != null ? e1.getViews() : 0))
-                    .collect(Collectors.toList());
-        }
-
-        if (categories != null && categories.isEmpty()) {
-            categories = null;
-        }
-
-        if (rangeEnd == null) {
-            rangeEnd = LocalDateTime.now().plusYears(100);
+        // Сортировка
+        if (sort != null) {
+            if (sort.equalsIgnoreCase("VIEWS")) {
+                events = events.stream()
+                        .sorted((e1, e2) -> Long.compare(
+                                e2.getViews() != null ? e2.getViews() : 0,
+                                e1.getViews() != null ? e1.getViews() : 0))
+                        .collect(Collectors.toList());
+            } else if (sort.equalsIgnoreCase("EVENT_DATE")) {
+                events = events.stream()
+                        .sorted((e1, e2) -> e1.getEventDate().compareTo(e2.getEventDate()))
+                        .collect(Collectors.toList());
+            }
         }
 
         return events.stream().map(EventMapper::toShortDto).collect(Collectors.toList());
     }
-
     @Override
     public EventFullDto getEventByIdPublic(Long id, HttpServletRequest request) {
         Event event = eventRepository.findByIdAndState(id, EventState.PUBLISHED)
