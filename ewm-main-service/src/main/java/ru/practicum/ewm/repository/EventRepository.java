@@ -13,7 +13,8 @@ import java.util.Optional;
 
 public interface EventRepository extends JpaRepository<Event, Long> {
 
-    boolean existsByCategoryId(Long categoryId);
+    @Query("SELECT COUNT(e) > 0 FROM Event e WHERE e.category.id = :catId")
+    boolean existsByCategoryId(@Param("catId") Long catId);
 
     List<Event> findAllByInitiatorId(Long initiatorId, Pageable pageable);
 
