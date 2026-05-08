@@ -88,7 +88,13 @@ public class RequestServiceImpl implements RequestService {
         }
 
         request.setStatus(RequestStatus.CANCELED);
+
+        if (request.getStatus() == RequestStatus.CONFIRMED) {
+            throw new ConflictException("Cannot cancel a confirmed request");
+        }
+
         return RequestMapper.toDto(requestRepository.save(request));
+
     }
 
     @Override

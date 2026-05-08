@@ -202,6 +202,14 @@ public class EventServiceImpl implements EventService {
                     .collect(Collectors.toList());
         }
 
+        if (categories != null && categories.isEmpty()) {
+            categories = null;
+        }
+
+        if (rangeEnd == null) {
+            rangeEnd = LocalDateTime.now().plusYears(100);
+        }
+
         return events.stream().map(EventMapper::toShortDto).collect(Collectors.toList());
     }
 
