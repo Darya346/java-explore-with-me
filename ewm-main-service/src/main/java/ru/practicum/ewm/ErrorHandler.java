@@ -61,14 +61,20 @@ public class ErrorHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiError handleBadRequest(final Exception e) {
         log.error("400: {}", e.getMessage());
+        String message = e.getMessage();
+
+
+        if (e instanceof MethodArgumentNotValidException) {
+            message = ((MethodArgumentNotValidException) e).getBindingResult().getAllErrors().get(0).getDefaultMessage();
+        }
+
         return ApiError.builder()
                 .status(HttpStatus.BAD_REQUEST.name())
                 .reason("Incorrectly made request.")
-                .message(e.getMessage())
+                .message(message)
                 .timestamp(LocalDateTime.now().format(FORMATTER))
                 .build();
     }
-
 
     @ExceptionHandler
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)

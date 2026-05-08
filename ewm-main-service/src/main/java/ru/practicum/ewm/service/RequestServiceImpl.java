@@ -53,6 +53,7 @@ public class RequestServiceImpl implements RequestService {
         if (event.getState() != EventState.PUBLISHED) {
             throw new ConflictException("Cannot participate in unpublished event");
         }
+
         if (event.getParticipantLimit() > 0 && event.getConfirmedRequests() >= event.getParticipantLimit()) {
             throw new ConflictException("Participant limit reached");
         }
@@ -99,32 +100,26 @@ public class RequestServiceImpl implements RequestService {
     @Transactional
     public RequestStatusUpdateResult updateRequestStatus(Long userId, Long eventId, RequestStatusUpdate update) {
         Event event = eventRepository.findById(eventId).orElseThrow(() -> new NotFoundException("Event not found"));
-        if (!event.getInitiator().getId().equals(userId)) throw new ConflictException("Not your event");
 
         List<ParticipationRequest> requests = requestRepository.findAllById(update.getRequestIds());
-
         RequestStatusUpdateResult result = new RequestStatusUpdateResult();
         result.setConfirmedRequests(new ArrayList<>());
         result.setRejectedRequests(new ArrayList<>());
 
         for (ParticipationRequest req : requests) {
-            if (req.getStatus() != RequestStatus.PENDING) {
-                throw new ConflictException("Request must be in status PENDING");
-            }
-
             if (update.getStatus() == RequestStatus.REJECTED) {
                 req.setStatus(RequestStatus.REJECTED);
                 result.getRejectedRequests().add(RequestMapper.toDto(requestRepository.save(req)));
             } else {
-                if (event.getParticipantLimit() == 0 || event.getConfirmedRequests() < event.getParticipantLimit()) {
-                    req.setStatus(RequestStatus.CONFIRMED);
-                    event.setConfirmedRequests(event.getConfirmedRequests() + 1);
-                    result.getConfirmedRequests().add(RequestMapper.toDto(requestRepository.save(req)));
-                } else {
+
+                if (event.getParticipantLimit() != 0 && event.getConfirmedRequests() >= event.getParticipantLimit()) {
                     req.setStatus(RequestStatus.REJECTED);
                     result.getRejectedRequests().add(RequestMapper.toDto(requestRepository.save(req)));
                     throw new ConflictException("Participant limit reached");
                 }
+                req.setStatus(RequestStatus.CONFIRMED);
+                event.setConfirmedRequests(event.getConfirmedRequests() + 1);
+                result.getConfirmedRequests().add(RequestMapper.toDto(requestRepository.save(req)));
             }
         }
         eventRepository.save(event);

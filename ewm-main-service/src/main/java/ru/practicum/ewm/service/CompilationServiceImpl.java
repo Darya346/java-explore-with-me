@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.ewm.dto.request.NewCompilationDto;
 import ru.practicum.ewm.dto.request.UpdateCompilationRequest;
 import ru.practicum.ewm.dto.response.CompilationDto;
+import ru.practicum.ewm.exception.NotFoundException;
 import ru.practicum.ewm.mapper.CompilationMapper;
 import ru.practicum.ewm.model.Compilation;
 import ru.practicum.ewm.model.Event;
@@ -33,22 +34,19 @@ public class CompilationServiceImpl implements CompilationService {
     @Transactional
     public CompilationDto addCompilation(NewCompilationDto newCompilationDto) {
         Set<Event> events = new HashSet<>();
+
         if (newCompilationDto.getEvents() != null && !newCompilationDto.getEvents().isEmpty()) {
             events = new HashSet<>(eventRepository.findAllById(newCompilationDto.getEvents()));
         }
 
-        Compilation compilation = CompilationMapper.toCompilation(newCompilationDto);
-
-        compilation.setEvents(events);
+        Compilation compilation = CompilationMapper.toCompilation(newCompilationDto, events);
 
         if (compilation.getPinned() == null) {
             compilation.setPinned(false);
         }
 
-        Compilation savedCompilation = compilationRepository.save(compilation);
-        return CompilationMapper.toDto(savedCompilation);
+        return CompilationMapper.toDto(compilationRepository.save(compilation));
     }
-
     @Override
     @Transactional
     public void deleteCompilation(Long compId) {
@@ -62,15 +60,20 @@ public class CompilationServiceImpl implements CompilationService {
     @Transactional
     public CompilationDto updateCompilation(Long compId, UpdateCompilationRequest updateRequest) {
         Compilation compilation = compilationRepository.findById(compId)
-                .orElseThrow(() -> new RuntimeException("Compilation not found"));
+                .orElseThrow(() -> new NotFoundException("Compilation with id=" + compId + " was not found"));
+
 
         if (updateRequest.getEvents() != null) {
             Set<Event> events = new HashSet<>(eventRepository.findAllById(updateRequest.getEvents()));
             compilation.setEvents(events);
         }
+
+
         if (updateRequest.getPinned() != null) {
             compilation.setPinned(updateRequest.getPinned());
         }
+
+
         if (updateRequest.getTitle() != null && !updateRequest.getTitle().isBlank()) {
             compilation.setTitle(updateRequest.getTitle());
         }

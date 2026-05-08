@@ -45,30 +45,53 @@ public class EventServiceImpl implements EventService {
 
     @Override
     @Transactional
-    public EventFullDto createEvent(Long userId, NewEventDto dto) {
-        if (dto.getEventDate().isBefore(LocalDateTime.now().plusHours(2))) {
-            throw new BadRequestException("Event date must be at least 2 hours in the future.");
+    public EventFullDto createEvent(Long userId, NewEventDto newEventDto) {
+
+        if (newEventDto.getEventDate().isBefore(LocalDateTime.now().plusHours(2))) {
+            throw new BadRequestException("Field: eventDate. Error: must contain a date that has not yet arrived. " +
+                    "Value: " + newEventDto.getEventDate());
         }
 
-        User initiator = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found"));
-        Category category = categoryRepository.findById(dto.getCategory())
-                .orElseThrow(() -> new NotFoundException("Category not found"));
-        Location location = locationRepository.findById(dto.getLocation())
-                .orElseThrow(() -> new NotFoundException("Location not found"));
 
-        Event event = EventMapper.toEvent(dto);
+        User initiator = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User with id=" + userId + " was not found"));
+
+
+        Category category = categoryRepository.findById(newEventDto.getCategory())
+                .orElseThrow(() -> new NotFoundException("Category with id=" + newEventDto.getCategory() + " was not found"));
+
+
+        Location location = locationRepository.findById(newEventDto.getLocation())
+                .orElseThrow(() -> new NotFoundException("Location with id=" + newEventDto.getLocation() + " was not found"));
+
+
+        Event event = EventMapper.toEvent(newEventDto);
+
+
         event.setInitiator(initiator);
         event.setCategory(category);
         event.setLocation(location);
         event.setCreatedOn(LocalDateTime.now());
         event.setState(EventState.PENDING);
+
+
         event.setConfirmedRequests(0L);
         event.setViews(0L);
 
-        return EventMapper.toFullDto(eventRepository.save(event));
-    }
 
+        if (event.getPaid() == null) {
+            event.setPaid(false);
+        }
+        if (event.getParticipantLimit() == null) {
+            event.setParticipantLimit(0);
+        }
+        if (event.getRequestModeration() == null) {
+            event.setRequestModeration(true);
+        }
+
+        Event savedEvent = eventRepository.save(event);
+        return EventMapper.toFullDto(savedEvent);
+    }
     @Override
     public List<EventShortDto> getEventsByUserId(Long userId, int from, int size) {
         return eventRepository.findAllByInitiatorId(userId, PageRequest.of(from / size, size))
@@ -86,7 +109,7 @@ public class EventServiceImpl implements EventService {
     @Transactional
     public EventFullDto updateEventByUserId(Long userId, Long eventId, UpdateEventUser request) {
         Event event = eventRepository.findByIdAndInitiatorId(eventId, userId)
-                .orElseThrow(() -> new NotFoundException("Event not found"));
+                .orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
 
         if (event.getState() == EventState.PUBLISHED) {
             throw new ConflictException("Only pending or canceled events can be changed");
@@ -99,9 +122,6 @@ public class EventServiceImpl implements EventService {
             event.setEventDate(request.getEventDate());
         }
 
-        updateEventCommonFields(event, request.getAnnotation(), request.getCategory(), request.getDescription(),
-                request.getLocation(), request.getPaid(), request.getParticipantLimit(), request.getRequestModeration(), request.getTitle());
-
         if (request.getStateAction() != null) {
             if (request.getStateAction().equals("SEND_TO_REVIEW")) {
                 event.setState(EventState.PENDING);
@@ -109,6 +129,9 @@ public class EventServiceImpl implements EventService {
                 event.setState(EventState.CANCELED);
             }
         }
+
+        updateEventCommonFields(event, request.getAnnotation(), request.getCategory(), request.getDescription(),
+                request.getLocation(), request.getPaid(), request.getParticipantLimit(), request.getRequestModeration(), request.getTitle());
 
         return EventMapper.toFullDto(eventRepository.save(event));
     }
@@ -125,26 +148,30 @@ public class EventServiceImpl implements EventService {
     @Override
     @Transactional
     public EventFullDto updateEventByAdmin(Long eventId, UpdateEventAdmin request) {
+
         Event event = eventRepository.findById(eventId)
-                .orElseThrow(() -> new NotFoundException("Event not found"));
+                .orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
 
         if (request.getEventDate() != null) {
             if (request.getEventDate().isBefore(LocalDateTime.now().plusHours(1))) {
-                throw new BadRequestException("Event date must be at least 1 hour before publication");
+                throw new BadRequestException("Event date must be at least 1 hour before publication. " +
+                        "Value: " + request.getEventDate());
             }
             event.setEventDate(request.getEventDate());
         }
 
         if (request.getStateAction() != null) {
             if (request.getStateAction().equals("PUBLISH_EVENT")) {
+
                 if (event.getState() != EventState.PENDING) {
-                    throw new ConflictException("Event must be PENDING to publish");
+                    throw new ConflictException("Cannot publish the event because it's not in the PENDING state: " + event.getState());
                 }
                 event.setState(EventState.PUBLISHED);
                 event.setPublishedOn(LocalDateTime.now());
             } else if (request.getStateAction().equals("REJECT_EVENT")) {
+
                 if (event.getState() == EventState.PUBLISHED) {
-                    throw new ConflictException("Cannot reject published event");
+                    throw new ConflictException("Cannot reject the event because it's already published.");
                 }
                 event.setState(EventState.CANCELED);
             }
@@ -159,20 +186,33 @@ public class EventServiceImpl implements EventService {
     // --- PUBLIC API ---
 
     @Override
-    public List<EventShortDto> getEventsPublic(String text, List<Long> cats, Boolean paid, LocalDateTime start,
-                                               LocalDateTime end, Boolean onlyAvail, String sort, int from, int size,
+    public List<EventShortDto> getEventsPublic(String text, List<Long> categories, Boolean paid,
+                                               LocalDateTime rangeStart, LocalDateTime rangeEnd,
+                                               Boolean onlyAvailable, String sort, int from, int size,
                                                HttpServletRequest request) {
-        if (start != null && end != null && start.isAfter(end)) {
+
+        if (rangeStart != null && rangeEnd != null && rangeStart.isAfter(rangeEnd)) {
             throw new BadRequestException("Start date cannot be after end date");
+        }
+
+        if (rangeStart == null && rangeEnd == null) {
+            rangeStart = LocalDateTime.now();
         }
 
         sendStats(request);
 
-        List<Event> events = eventRepository.findPublishedEvents(text, cats, paid, start, end, onlyAvail, PageRequest.of(from / size, size));
+        List<Event> events = eventRepository.findPublishedEvents(text, categories, paid, rangeStart, rangeEnd,
+                onlyAvailable, PageRequest.of(from / size, size));
 
+        if ("VIEWS".equals(sort)) {
+            events = events.stream()
+                    .sorted((e1, e2) -> e2.getViews().compareTo(e1.getViews()))
+                    .collect(Collectors.toList());
+        }
 
-
-        return events.stream().map(EventMapper::toShortDto).collect(Collectors.toList());
+        return events.stream()
+                .map(EventMapper::toShortDto)
+                .collect(Collectors.toList());
     }
 
     @Override
