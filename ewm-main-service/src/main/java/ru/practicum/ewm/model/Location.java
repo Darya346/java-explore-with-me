@@ -17,7 +17,7 @@ public class Location {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
 
-    @Column(nullable = false)
+    @Column
     String name;
 
     @Column(nullable = false)
@@ -26,6 +26,6 @@ public class Location {
     @Column(nullable = false)
     Float lon;
 
-    @Column(nullable = false)
+    @Column
     Float radius;
 }
