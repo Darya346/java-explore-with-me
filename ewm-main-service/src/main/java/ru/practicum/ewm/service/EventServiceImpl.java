@@ -191,8 +191,10 @@ public class EventServiceImpl implements EventService {
                                                Boolean onlyAvailable, String sort, int from, int size,
                                                HttpServletRequest request) {
 
-        if (rangeStart != null && rangeEnd != null && rangeStart.isAfter(rangeEnd)) {
-            throw new BadRequestException("Start date cannot be after end date");
+        if (rangeStart != null && rangeEnd != null) {
+            if (rangeStart.isAfter(rangeEnd)) {
+                throw new BadRequestException("Start date cannot be after end date");
+            }
         }
 
         if (rangeStart == null && rangeEnd == null) {
@@ -200,7 +202,6 @@ public class EventServiceImpl implements EventService {
         }
 
         sendStats(request);
-
         List<Event> events = eventRepository.findPublishedEvents(text, categories, paid, rangeStart, rangeEnd,
                 onlyAvailable, PageRequest.of(from / size, size));
 
@@ -248,12 +249,15 @@ public class EventServiceImpl implements EventService {
     }
 
     private void sendStats(HttpServletRequest request) {
-
-        statsClient.hit(
-                APP_NAME,
-                request.getRequestURI(),
-                request.getRemoteAddr(),
-                LocalDateTime.now()
-        );
+        try {
+            statsClient.hit(
+                    APP_NAME,
+                    request.getRequestURI(),
+                    request.getRemoteAddr(),
+                    LocalDateTime.now()
+            );
+        } catch (Exception e) {
+            log.error("Ошибка при отправке статистики в stats-server: {}", e.getMessage());
+        }
     }
 }
