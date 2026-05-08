@@ -53,7 +53,6 @@ public class RequestServiceImpl implements RequestService {
         if (event.getState() != EventState.PUBLISHED) {
             throw new ConflictException("Cannot participate in unpublished event");
         }
-
         if (event.getParticipantLimit() > 0 && event.getConfirmedRequests() >= event.getParticipantLimit()) {
             throw new ConflictException("Participant limit reached");
         }
@@ -62,7 +61,6 @@ public class RequestServiceImpl implements RequestService {
         request.setCreated(LocalDateTime.now());
         request.setEvent(event);
         request.setRequester(requester);
-
 
         if (!event.getRequestModeration() || event.getParticipantLimit() == 0) {
             request.setStatus(RequestStatus.CONFIRMED);
@@ -82,10 +80,9 @@ public class RequestServiceImpl implements RequestService {
                 .orElseThrow(() -> new NotFoundException("Request with id=" + requestId + " was not found"));
 
         if (!request.getRequester().getId().equals(userId)) {
-            throw new ConflictException("You can only cancel your own requests");
+            throw new ConflictException("Not your request");
         }
-
-        if (request.getStatus().equals(RequestStatus.CONFIRMED)) {
+        if (request.getStatus() == RequestStatus.CONFIRMED) {
             throw new ConflictException("Cannot cancel an already confirmed request");
         }
 
@@ -94,29 +91,44 @@ public class RequestServiceImpl implements RequestService {
     }
 
     @Override
+    public List<RequestDto> getEventRequests(Long userId, Long eventId) {
+        Event event = eventRepository.findById(eventId).orElseThrow(() -> new NotFoundException("Event not found"));
+        if (!event.getInitiator().getId().equals(userId)) throw new ConflictException("Not your event");
+
+        return requestRepository.findAllByEventId(eventId).stream()
+                .map(RequestMapper::toDto).collect(Collectors.toList());
+    }
+
+    @Override
     @Transactional
     public RequestStatusUpdateResult updateRequestStatus(Long userId, Long eventId, RequestStatusUpdate update) {
         Event event = eventRepository.findById(eventId).orElseThrow(() -> new NotFoundException("Event not found"));
+        if (!event.getInitiator().getId().equals(userId)) throw new ConflictException("Not your event");
 
         List<ParticipationRequest> requests = requestRepository.findAllById(update.getRequestIds());
+
         RequestStatusUpdateResult result = new RequestStatusUpdateResult();
         result.setConfirmedRequests(new ArrayList<>());
         result.setRejectedRequests(new ArrayList<>());
 
         for (ParticipationRequest req : requests) {
+            if (req.getStatus() != RequestStatus.PENDING) {
+                throw new ConflictException("Request must be in status PENDING");
+            }
+
             if (update.getStatus() == RequestStatus.REJECTED) {
                 req.setStatus(RequestStatus.REJECTED);
                 result.getRejectedRequests().add(RequestMapper.toDto(requestRepository.save(req)));
             } else {
-
-                if (event.getParticipantLimit() != 0 && event.getConfirmedRequests() >= event.getParticipantLimit()) {
+                if (event.getParticipantLimit() == 0 || event.getConfirmedRequests() < event.getParticipantLimit()) {
+                    req.setStatus(RequestStatus.CONFIRMED);
+                    event.setConfirmedRequests(event.getConfirmedRequests() + 1);
+                    result.getConfirmedRequests().add(RequestMapper.toDto(requestRepository.save(req)));
+                } else {
                     req.setStatus(RequestStatus.REJECTED);
                     result.getRejectedRequests().add(RequestMapper.toDto(requestRepository.save(req)));
                     throw new ConflictException("Participant limit reached");
                 }
-                req.setStatus(RequestStatus.CONFIRMED);
-                event.setConfirmedRequests(event.getConfirmedRequests() + 1);
-                result.getConfirmedRequests().add(RequestMapper.toDto(requestRepository.save(req)));
             }
         }
         eventRepository.save(event);
