@@ -29,7 +29,6 @@ public class LocationServiceImpl implements LocationService {
         Location savedLocation = locationRepository.save(location);
         return LocationMapper.toDto(savedLocation);
     }
-
     @Override
     public LocationDto getLocation(Long locationId) {
         Location location = locationRepository.findById(locationId)
