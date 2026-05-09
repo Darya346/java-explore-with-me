@@ -14,6 +14,7 @@ import ru.practicum.ewm.service.CategoryService;
 public class AdminCategoryController {
 
     private final CategoryService categoryService;
+    private static final String CAT_ID_PATH = "/{catId}";
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -21,13 +22,13 @@ public class AdminCategoryController {
         return categoryService.createCategory(newCategoryDto);
     }
 
-    @PatchMapping("/{catId}")
+    @PatchMapping(CAT_ID_PATH)
     public CategoryDto updateCategory(@PathVariable Long catId,
-                                      @Valid @RequestBody CategoryDto categoryDto) { // @Valid здесь есть?
+                                      @Valid @RequestBody CategoryDto categoryDto) {
         return categoryService.updateCategory(catId, categoryDto);
     }
 
-    @DeleteMapping("/{catId}")
+    @DeleteMapping(CAT_ID_PATH)
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteCategory(@PathVariable Long catId) {
         categoryService.deleteCategory(catId);

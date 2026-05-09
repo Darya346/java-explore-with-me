@@ -16,6 +16,7 @@ import jakarta.validation.Valid;
 public class AdminCompilationController {
 
     private final CompilationService compilationService;
+    private static final String COMP_ID_PATH = "/{compId}";
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -23,13 +24,13 @@ public class AdminCompilationController {
         return compilationService.addCompilation(newCompilationDto);
     }
 
-    @DeleteMapping("/{compId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT) // Только этот статус, без возврата тела
+    @DeleteMapping(COMP_ID_PATH)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteCompilation(@PathVariable Long compId) {
         compilationService.deleteCompilation(compId);
     }
 
-    @PatchMapping("/{compId}")
+    @PatchMapping(COMP_ID_PATH)
     public CompilationDto updateCompilation(@PathVariable Long compId,
                                             @Valid @RequestBody UpdateCompilationRequest updateRequest) {
         return compilationService.updateCompilation(compId, updateRequest);
