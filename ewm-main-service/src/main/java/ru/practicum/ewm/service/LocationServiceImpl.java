@@ -25,14 +25,15 @@ import java.util.stream.Collectors;
 public class LocationServiceImpl implements LocationService {
 
     LocationRepository locationRepository;
-    private final EventRepository eventRepository;
+    EventRepository eventRepository;
+
     @Override
     @Transactional
     public LocationDto createLocation(NewLocationDto newLocationDto) {
         Location location = LocationMapper.toLocation(newLocationDto);
-        Location savedLocation = locationRepository.save(location);
-        return LocationMapper.toDto(savedLocation);
+        return LocationMapper.toDto(locationRepository.save(location));
     }
+
     @Override
     public LocationDto getLocation(Long locationId) {
         Location location = locationRepository.findById(locationId)
@@ -50,16 +51,16 @@ public class LocationServiceImpl implements LocationService {
     @Override
     @Transactional
     public void deleteLocation(Long locationId) {
-        locationRepository.deleteById(locationId);
         if (!locationRepository.existsById(locationId)) {
             throw new NotFoundException("Location with id=" + locationId + " was not found");
         }
+        locationRepository.deleteById(locationId);
     }
 
     @Override
     public List<EventShortDto> getEventsInLocation(Long locationId) {
         Location location = locationRepository.findById(locationId)
-                .orElseThrow(() -> new NotFoundException("Location with id=" + locationId + " was not found")); // Добавлен ID
+                .orElseThrow(() -> new NotFoundException("Location with id=" + locationId + " was not found"));
 
         return eventRepository.findEventsNearby(location.getLat(), location.getLon(), location.getRadius())
                 .stream()
@@ -71,7 +72,7 @@ public class LocationServiceImpl implements LocationService {
     @Transactional
     public LocationDto updateLocation(Long locationId, NewLocationDto dto) {
         Location location = locationRepository.findById(locationId)
-                .orElseThrow(() -> new NotFoundException("Location with id=" + locationId + " was not found")); // Добавлен ID
+                .orElseThrow(() -> new NotFoundException("Location with id=" + locationId + " was not found"));
 
         if (dto.getName() != null && !dto.getName().isBlank()) location.setName(dto.getName());
         if (dto.getLat() != null) location.setLat(dto.getLat());
