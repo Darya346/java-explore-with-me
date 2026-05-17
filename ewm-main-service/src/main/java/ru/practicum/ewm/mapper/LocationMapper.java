@@ -7,6 +7,7 @@ import ru.practicum.ewm.model.Location;
 public class LocationMapper {
 
     public static LocationDto toDto(Location location) {
+        if (location == null) return null;
         LocationDto locationDto = new LocationDto();
         locationDto.setId(location.getId());
         locationDto.setName(location.getName());
@@ -17,11 +18,20 @@ public class LocationMapper {
     }
 
     public static Location toLocation(NewLocationDto request) {
+        if (request == null) return null;
         Location location = new Location();
         location.setName(request.getName());
         location.setLat(request.getLat());
         location.setLon(request.getLon());
         location.setRadius(request.getRadius());
+        return location;
+    }
+
+    public static Location toLocation(LocationDto dto) {
+        if (dto == null) return null;
+        Location location = new Location();
+        location.setLat(dto.getLat());
+        location.setLon(dto.getLon());
         return location;
     }
 }

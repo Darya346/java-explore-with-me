@@ -6,6 +6,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.FieldDefaults;
+import ru.practicum.ewm.dto.response.LocationDto;
 
 import java.time.LocalDateTime;
 
@@ -24,7 +25,7 @@ public class UpdateEventUser {
     String description;
 
     Long category;
-    Long location;
+    LocationDto location;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     LocalDateTime eventDate;
