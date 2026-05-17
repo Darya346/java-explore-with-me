@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import ru.practicum.ewm.dto.response.EventShortDto; 
 import ru.practicum.ewm.dto.response.LocationDto;
 import ru.practicum.ewm.service.LocationService;
 
@@ -25,5 +26,10 @@ public class PublicLocationController {
     @GetMapping("/{locationId}")
     public LocationDto getLocation(@PathVariable Long locationId) {
         return locationService.getLocation(locationId);
+    }
+
+    @GetMapping("/{locationId}/events")
+    public List<EventShortDto> getEventsInLocation(@PathVariable Long locationId) {
+        return locationService.getEventsInLocation(locationId);
     }
 }

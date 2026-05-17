@@ -52,5 +52,13 @@ public interface EventRepository extends JpaRepository<Event, Long> {
             @Param("rangeEnd") LocalDateTime rangeEnd,
             @Param("onlyAvailable") Boolean onlyAvailable,
             Pageable pageable);
+
+    @Query(value = "SELECT e.* FROM events e " +
+            "JOIN locations l ON e.location_id = l.id " +
+            "WHERE distance(l.lat, l.lon, :targetLat, :targetLon) <= :targetRadius " +
+            "AND e.state = 'PUBLISHED'", nativeQuery = true)
+    List<Event> findEventsNearby(@Param("targetLat") float lat,
+                                 @Param("targetLon") float lon,
+                                 @Param("targetRadius") float radius);
     Optional<Event> findByIdAndState(Long id, EventState state);
 }

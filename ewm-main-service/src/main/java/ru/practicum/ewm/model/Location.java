@@ -28,4 +28,5 @@ public class Location {
 
     @Column
     Float radius;
+
 }
